@@ -113,22 +113,43 @@ CNB 镜像不需要、也不允许有发布流水线。
 它做的事：校验 tag 与 `package.json` 版本一致 → `npm run check:fast` → `npm pack`
 → `npm publish --provenance --access public` → `gh release create` 附 tarball。
 
-### 一次性准备（二选一）
+### 一次性准备（推荐 Trusted Publishing）
 
-**A. npm Automation Token（最省事，首发也能用）**
+npm 正在收紧长期 token 的发布能力，所以本仓库按「无 token」方案设计：
 
-1. npmjs.com → Access Tokens → 生成 **Automation** token；
-2. GitHub 仓库 → Settings → Secrets and variables → Actions → 新建 `NPM_TOKEN`。
+1. **手工发首版一次**（包还不存在，trust 配置无处可挂）：
 
-**B. Trusted Publishing（无长期 token，推荐长期维护）**
+   ```powershell
+   npm login                 # 已是 zhileyo
+   npm publish --access public   # 会要一次 2FA 验证码
+   ```
 
-包还不存在时配不了，所以首版必须先手工发一次：本地 `npm login` 后
-`npm publish --access public`；再去 npmjs.com 该包 → Settings → Trusted
-Publisher 绑 `zhileyo/dsh-onenpc` + 工作流 `release.yml`。之后把 workflow 里
-`NODE_AUTH_TOKEN` 两行删掉即可（provenance 仍由 OIDC 提供）。
+2. **一条命令绑定 GitHub Actions**（npm ≥ 11.15，本机 11.19 满足）：
+
+   ```powershell
+   npm trust github dsh-onenpc --file release.yml --allow-publish
+   npm trust list dsh-onenpc      # 复查
+   ```
+
+   `--repo` 可省略：npm 会取 `package.json` 的 `repository.url`（已指向
+   `github.com/zhileyo/dsh-onenpc`）。
+
+3. **删掉 workflow 里的 `NODE_AUTH_TOKEN`**：
+
+   `release.yml` 的「发布到 npm」步骤去掉 `env:` 两行即可。OIDC 由
+   `id-token: write` 提供，provenance 自动带上。
+
+绑定必须人工过 2FA，这是 npm 的规则不是偏好：2026-07-31 起带 bypass-2FA 的
+Granular Access Token **不能再改**可信发布配置；同一公告写明 **2027-01 起这类
+token 也将失去直接 `npm publish` 的能力**，只剩读私有包和「暂存发布、人工批准」。
+所以 Automation Token 只是过渡方案。
+
+**过渡备选：Automation Token**——npmjs.com → Access Tokens 生成 Automation
+token，存进 GitHub Secrets 的 `NPM_TOKEN`，workflow 保持现在的 `env:` 写法。
+它能用，但 2027-01 之后会失效。
 
 注意：本地已经发过 0.0.1 就**不要**再推 `v0.0.1` tag——publish 步骤会撞
-`EPUBLISHCONFLICT`；从下一个版本开始用 tag 发。想「一条命令发首版」就走 A 路线，别手工发。
+`EPUBLISHCONFLICT`；从下一个版本开始用 tag 发。
 
 包名现状：`dsh-onenpc` 在 registry 上尚未占用（`npm view` 404），可以公开发。
 

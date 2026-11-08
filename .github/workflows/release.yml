@@ -50,11 +50,12 @@ jobs:
       - name: 发布到 npm
         if: github.event_name == 'push'
         run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      # 可选：改用 npm Trusted Publishing（无需 NPM_TOKEN）。
-      # 见 docs/REPO.md「发布」一节；切换后删掉上面两行 env。
+      # 认证走 npm Trusted Publishing（OIDC），不需要任何长期 token。
+      # 首次绑定见 docs/REPO.md「发布」一节：
+      #   npm trust github dsh-onenpc --file release.yml --allow-publish
+      # 过渡期也可退回 token：给本步骤加回
+      #   env: { NODE_AUTH_TOKEN: "${{ secrets.NPM_TOKEN }}" }
 
       - name: 建 GitHub Release 并附 tarball
         if: github.event_name == 'push'
