@@ -1,6 +1,8 @@
 name: Release
 
-# 只在推 tag（v0.0.1 这种）时跑，正常提交不会触发，所以没有 npm 凭据也不会挡开发。
+# 只在推 tag（v0.0.1 这种）时真正发布，正常提交不会触发，所以没有 npm 凭据也不会挡开发。
+# workflow_dispatch 是干跑：校验版本、跑自测、打包，但不 publish、不建 Release，
+# 用来在没有 token 的情况下确认流水线本身是通的。
 # 首次发布必须人工做一次（包还不存在，无法配 trusted publishing），之后这个
 # workflow 就能一条龙：自测 → npm publish（带 provenance）→ GitHub Release。
 
@@ -9,11 +11,6 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
-    inputs:
-      dry_run:
-        description: "只打包不发布"
-        type: boolean
-        default: true
 
 permissions:
   contents: write # gh release create
