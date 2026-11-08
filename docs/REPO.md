@@ -122,10 +122,13 @@ CNB 镜像不需要、也不允许有发布流水线。
 
 **B. Trusted Publishing（无长期 token，推荐长期维护）**
 
-包还不存在时配不了，所以要先用 A 或本地 `npm login` + `npm publish` 发一次；
-然后在 npmjs.com 该包 → Settings → Trusted Publisher 里绑
-`zhileyo/dsh-onenpc` + 工作流 `release.yml`，之后把 workflow 里
+包还不存在时配不了，所以首版必须先手工发一次：本地 `npm login` 后
+`npm publish --access public`；再去 npmjs.com 该包 → Settings → Trusted
+Publisher 绑 `zhileyo/dsh-onenpc` + 工作流 `release.yml`。之后把 workflow 里
 `NODE_AUTH_TOKEN` 两行删掉即可（provenance 仍由 OIDC 提供）。
+
+注意：本地已经发过 0.0.1 就**不要**再推 `v0.0.1` tag——publish 步骤会撞
+`EPUBLISHCONFLICT`；从下一个版本开始用 tag 发。想「一条命令发首版」就走 A 路线，别手工发。
 
 包名现状：`dsh-onenpc` 在 registry 上尚未占用（`npm view` 404），可以公开发。
 
