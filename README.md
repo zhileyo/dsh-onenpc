@@ -26,15 +26,19 @@
 
 ## 发布
 
-推 tag 即发布（`.github/workflows/release.yml`，跑在 GitHub Actions）：
+**推 `main` 即发布**（`.github/workflows/release.yml`，跑在 GitHub Actions）：
 
 ```bash
-git push origin main && git tag v0.0.1 && git push origin v0.0.1
+npm version 0.0.2 --no-git-tag-version
+git commit -am "chore(release): v0.0.2" && git push origin main
 ```
 
-工作流会跑自测、`npm publish --provenance`、建 GitHub Release 并附 tarball。
-首次发布前要在仓库 Secrets 里配 `NPM_TOKEN`（或改用 npm Trusted Publishing），
-细节见 [docs/REPO.md](docs/REPO.md#发布npm--github-release)。
+工作流跑自测 → 发现 registry 上没有这个版本就 `npm publish --provenance` →
+自己打 `v0.0.2` tag → 建 Release 附 tarball。版本已存在就只跑自测，不重复发布。
+
+两个前置：仓库变量 `NPM_PUBLISH=1` 打开总开关；npm 侧用 **Trusted Publishing**
+（OIDC，仓库里不存任何 token）。首次绑定与细节见
+[docs/REPO.md](docs/REPO.md#发布npm--github-release)。
 
 ## 流程（完全对齐 npc-x §8 状态机，档位差异化落地）
 

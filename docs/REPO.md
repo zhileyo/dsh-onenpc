@@ -109,9 +109,16 @@ git ls-remote cnb main       # CNB
 发布跑在 **GitHub Actions**（`.github/workflows/release.yml`），因为 GitHub 是真源；
 CNB 镜像不需要、也不允许有发布流水线。
 
-工作流只在**推 tag** 时触发（`v*`），正常提交不会跑，所以没配凭据也挡不住开发。
-它做的事：校验 tag 与 `package.json` 版本一致 → `npm run check:fast` → `npm pack`
-→ `npm publish --provenance --access public` → `gh release create` 附 tarball。
+工作流**推 `main` 就跑**（也可以手动 dispatch）：自测 → 读 `package.json` 版本 →
+registry 上没这个版本就发布 → `npm pack` → 自动打 `v<版本>` tag 并建 Release。
+
+两个刻意的设计：
+
+- **幂等**：版本已经在 registry 上就只跑自测、不发布。所以「忘了 bump 版本号」的
+  提交不会重复发布，也不需要把 tag 推送当成开关。
+- **总开关**：仓库变量 `NPM_PUBLISH=1` 才会真发。没设时只跑自测与打包，这样
+  在信任关系绑好之前 push 不会把 CI 跑成红色。
+
 
 ### 一次性准备（推荐 Trusted Publishing）
 
@@ -175,20 +182,21 @@ B 路线的细节：`npm stage publish` 任何 token 类型都能跑、不弹 2F
 
 ```powershell
 # 1. 改版本（0.0.1 → 0.0.2 之类），顺手更新 README 状态行
-# 2. 提交并推真源
+npm version 0.0.2 --no-git-tag-version
 git commit -am "chore(release): v0.0.2"
-git push origin main
 
-# 3. 打 tag 并推——这一步才触发发布
-git tag v0.0.2
-git push origin v0.0.2
+# 2. 推真源——这一步就是发布
+git push origin main
 ```
+
+workflow 自己判断版本是否已发布，没发过就发，然后自己打 tag、自己建 Release。
+不需要手动 `git tag` / `git push --tags`。
 
 跑完检查：
 
 ```powershell
 npm view dsh-onenpc version                 # registry 上的版本
-gh release view v0.0.2 --repo zhileyo/dsh-onenpc
+gh release list --repo zhileyo/dsh-onenpc
 ```
 
 ### 发什么
