@@ -22,6 +22,14 @@
     "three-departments-six-ministries"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zhileyo/dsh-onenpc.git"
+  },
+  "homepage": "https://github.com/zhileyo/dsh-onenpc#readme",
+  "bugs": {
+    "url": "https://github.com/zhileyo/dsh-onenpc/issues"
+  },
   "type": "module",
   "main": "lib/index.js",
   "exports": {
