@@ -1,0 +1,11 @@
+node_modules/
+*.tgz
+Thumbs.db
+.DS_Store
+
+# 本机运行数据：DSH_HOME 里的 state.json / artifacts 不随仓库走
+.dsh-dev-home/
+.dsh-market-home/
+state.json
+state.json.*
+artifacts/

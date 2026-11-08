@@ -1,0 +1,87 @@
+{
+  "version": 1,
+  "cards": [
+    {
+      "id": "card-c934aeb2-2d9e-4add-80fa-889c454b5cd5",
+      "title": "把插件项目名从 dsh-npc 改为 dsh-edict（包名/路由/数据目录/profile 注册）",
+      "summary": "包名 dsh-npc → dsh-edict 全链路改完并验证：package.json name、cordis.patch.yml 的 id/name、ROUTE_PREFIX /dsh-npc-7312 → /dsh-edict-7312（client 与宿主两侧同改）、数据目录 $DSH_HOME/dsh-edict、client 的 __ModuleLoader__.load id 与 data-plugin-css、日志前缀 [dsh-edict]、/meta 自述 name、state.source、README 与 analysis 文档标题/路径。骨架先例引用（原 dsh-edict）统一改成 dsh-edict-demo，避免与自身同名混淆。数据迁移：$DSH_HOME/dsh-edict 里原骨架 state.json 备份为 state.json.bak-dsh-edict-demo-20261101-174418，然后把 dsh-npc 的 state.json(104KB/4 单) + artifacts 移入，空目录删除。profile：删悬空 junction node_modules\\dsh-npc，dependencies 去掉 dsh-npc，bundles 的 dsh-npc 换成 dsh-edict（20 项）。install-profile.ps1 重写为幂等且 5.1 兼容（不再对悬空链接 Get-Item、改用字符串操作而非 regex 匹配 bundles）。验证：domain 136 + smoke 208 全过；dev-server 实跑 /dsh-edict-7312/ui 200、data-npc-base 正确、/meta.name=dsh-edict、POST /tasks 与 start 正常。",
+      "rationale": "源码目录已由 D:\\Projects\\dsh-npc 改名为 D:\\Projects\\dsh-edict（旧 dsh-edict 骨架已让位为 dsh-edict-demo），但包内身份仍是 dsh-npc：package.json 包名、cordis patch 的 id/name、路由前缀 /dsh-npc-7312、数据目录 $DSH_HOME/dsh-npc、client 的 __ModuleLoader__ id 全部对不上，desktop profile 里还挂着指向已删除目录的悬空 junction，下次重启会直接装不上。改名必须一次贯通「包名 → 路由 → 存储 → 注册」四层，否则就是半改名状态。",
+      "rejected": "① 连内部面板 key / 命令名一起改（main key、layout.selectPanel('npc')、/npc 命令、@角色 解析、ui.html 的 .npcx 与 data-npc-base）：这些是行为契约不是包身份，改了要连带改 UI 与自测且没有收益，故保留。② 数据目录沿用 $DSH_HOME/dsh-npc 以免迁移：会让「包名 dsh-edict、数据在 dsh-npc」长期拧巴，且旧目录名的 junction 已悬空，长痛不如短痛。③ 直接删掉 $DSH_HOME/dsh-edict 里骨架的 state.json：那是另一个项目（dsh-edict-demo）的 327KB 数据，删了不可恢复，改为改名备份。④ 用 ConvertFrom-Json 重写 profile package.json：会重排/格式化整份文件，改为定点字符串手术。",
+      "sourceSessionId": "session-68570fce-7957-4a45-98f2-ee9aa907d9df",
+      "status": "done",
+      "tags": [
+        "rename",
+        "dsh-plugin",
+        "migration"
+      ],
+      "createdAt": 1793526364249,
+      "updatedAt": 1793526364249
+    },
+    {
+      "id": "card-9024fcdf-eb72-4caf-9fc9-3635608f48b9",
+      "title": "修复 /npc 命令返回非法 result kind 导致 gateway 报错",
+      "summary": "lib/index.js 的 /npc handler 结果 kind 由 'text' 改为 'success'（错误分支原本就是 'error'，合法）；命令注册从裸 try/catch 改为 ctx.effect(() => ctx.commands.register({...}), 'dsh-edict: /npc 命令')，与 dsh-kanban / dsh-pet 写法一致以获得卸载/热更时的 disposer。合法 kind 的权威来源是 profile 里两个在跑插件（billion-context、dsh-pet）的实现，因为宿主 app.asar 在沙箱中不可读。scripts/smoke.mjs 新增 D 段：伪 ctx（logger/get/on/effect/commands/webServer）挂载 apply，捕获 handler 后喂空输入与「中书令 + 需求」，断言 kind ∈ {success,error}、回执含任务号、命令建单以 origin=command/role=中书令 落盘；用 DSH_HOME 指向 mkdtemp 并在 finally 还原，且断言启动日志含该临时路径以防写真实数据。首轮运行暴露测试自身 bug（node:fs 的 readFile 是回调版、被 try/catch 静默吞掉），改为 node:fs/promises 并对非 ENOENT 直接抛出。npm run check：domain 136 + smoke 214 全过（较修前 213 项新增 1 项）。",
+      "rationale": "用户执行 `/npc` 时宿主直接报 `command.execute failed: gateway/internal: command \"npc\" returned unknown result kind \"text\"`，命令完全不可用。根因是 handler 返回 `{kind:'text'}`，而 commands 服务只认 success/error 白名单。之所以现在必须修：这是主交互入口（另一个入口是看板按钮与 @解析），坏了等于插件对外不可用；而 smoke 只覆盖纯函数与 HTTP 路由，命令面一直是裸奔，不补用例必然复发。",
+      "rejected": "① 改返回 `{kind:'message'}` 走会话消息通道——宿主是否支持无法验证，不猜第三种类别。② 抽一个结果 kind 常量表——只有一个命令，加抽象只增跳转。③ 只改代码不补测试——bug 形态就是「命令面没有测试」，不补必复发。④ 连真实宿主验证命令——要重启 GUI 且不可重复，改为伪 ctx 挂载 apply 做等价断言。",
+      "sourceSessionId": "session-68570fce-7957-4a45-98f2-ee9aa907d9df",
+      "status": "done",
+      "tags": [
+        "bug-fix",
+        "slash-command",
+        "dsh-plugin",
+        "testing"
+      ],
+      "createdAt": 1793526716067,
+      "updatedAt": 1793526716067
+    },
+    {
+      "id": "card-d0d6b626-9dc5-419b-bf04-de9745f0053a",
+      "title": "打上 dsh 插件标签：keywords 扩到 15 项 + README 挂 powered-by-dsh 徽章",
+      "summary": "package.json keywords 由 9 项扩到 15 项（补 npc、npc-team、orchestration、task-board、workflow、three-departments-six-ministries，保留 dsh / dsh-plugin / deepseek-harness / deepseek-runtime / cordis / react / multi-agent / npc-x / kanban）；README.md 末尾按 dsh-badge skill 追加 shields.io 的 powered_by-dsh 徽章（121×20、链到 deepseek-harness 仓库，已实测该 URL 返回 200 + image/svg+xml）。校验：package.json JSON OK、npm run check 全过（domain 136 + smoke 214）。",
+      "rationale": "用户在两轮命名讨论后明确选择「先不改名，只打标签」：包身份（dsh-edict）留在本地，用 npm keywords + README 官方徽章把「这是 dsh 插件」这件事标出来。此时不改名是因为插件只经 desktop profile 本地加载、不进 npm，二次全链路改名零收益；而标签是零成本、可回退的发现性收益。",
+      "rejected": "放弃了三种做法：① 改名为 dsh-npcteam / dsh-sansheng（npm 上均空闲、语义更好，但要再走一遍包名/路由/数据目录/profile/脚本手术）；② 改回 dsh-npc（npm 被 dushaobindoudou 预留，且单数 NPC 带工具人联想）；③ 去 npm 抢注 dsh-edict（已被 littlecwr 的纯工具实现占用，路线不同，无法对齐）。",
+      "sourceSessionId": "session-68570fce-7957-4a45-98f2-ee9aa907d9df",
+      "status": "done",
+      "tags": [
+        "dsh-plugin",
+        "metadata",
+        "readme",
+        "naming"
+      ],
+      "createdAt": 1793528178337,
+      "updatedAt": 1793528178337
+    },
+    {
+      "id": "card-fe52dced-cfa2-4943-922f-89c1bd92dbca",
+      "title": "把包名从 dsh-edict 改为 dsh-onenpc（包名/路由/数据目录/profile/文档全链路）",
+      "rationale": "用户在两轮命名讨论后拍板包名改为 dsh-onenpc（对外一个 NPC、对内一个朝廷）。npm 上 dsh-onenpc/onenpc 均空，GitHub 无占位；相比 dsh-edict（npm 已被 littlecwr 占用、与 dsh-edict-demo 同名）不再有同名隐患，也比 npcteam 多一层「单一入口 vs 内部班子」的叙事。",
+      "rejected": "放弃了 dsh-edict（npm 同名冲突 + 与 demo 三方同名）、npcteam（语义干净但泛化、与 dsh-hive/dsh-quorum 撞赛道）、npcone（与 cone 同尾的甜筒联想）、dsh-sansheng / dsh-six-ministries（官制辨识度最高但用户选择 npc 血统）以及 dushaobindoudou 已占的 council/dynasty/cabinet 家族。",
+      "sourceSessionId": "session-68570fce-7957-4a45-98f2-ee9aa907d9df",
+      "status": "done",
+      "tags": [
+        "rename",
+        "dsh-plugin",
+        "migration",
+        "naming"
+      ],
+      "createdAt": 1793529129867,
+      "updatedAt": 1793529453088,
+      "summary": "包名 dsh-edict → dsh-onenpc 全链路改完并验证。代码：16 个文件批量替换（用 @@DEMO@@ 占位保护 dsh-edict-demo 的 35 处骨架引用），落点 package.json name、cordis.patch.yml id/name、两侧 ROUTE_PREFIX /dsh-onenpc-7312、client 的 __ModuleLoader__.load id 与 data-plugin-css、日志前缀 [dsh-onenpc]、/meta name、state.source；数据目录改为裸名 $DSH_HOME/onenpc（join(home,'onenpc') + dev-server + smoke 三处一致）。内部契约（panel key 'npc'、/npc 命令、.npcx、data-npc-base、export const name='npc'）一字未动。存储三迁：onenpc 里运行时抢先写的种子 state 备份为 state.json.seed-20261101-183605，真数据 6 单/v235/98 审计/3 份 report 搬入，demo 骨架 327KB 备份随迁，$DSH_HOME/dsh-edict 已删；删掉运行时在旧代码窗口期错误创建的 $DSH_HOME/dsh-onenpc 空壳。profile：install-profile.ps1 重写为 $staleNames=@('dsh-npc','dsh-edict') 的通用迁移，junction dsh-onenpc → D:\\Projects\\dsh-edict、deps 旧名删除、bundles 20 项含新名。验证：domain 136 + smoke 214 全过；dev-server /ui 200 且 data-npc-base 正确、/meta.name=dsh-onenpc、POST /tasks 201、state.source=dsh-onenpc。踩坑：PS 5.1 读无 BOM UTF-8 的 .ps1 会解析失败（Unexpected token '}'），改存 UTF-8 BOM 后通过。</summary>\n<parameter name=\"rationale\">用户拍板用 dsh-onenpc：既保留 npc 血统（内部契约全叫 npc），又解决 dsh-edict 的 npm 同名冲突（littlecwr 已占用）与本地 demo 同名问题，还能承载「对外一个 NPC、对内一个朝廷」的产品叙事。dsh 命名空间里通用编排词已被同赛道作者占满（council/cabinet/dynasty/quorum/hive），继续用 edict 既不占优也无差异。</parameter>"
+    },
+    {
+      "id": "card-9939f613-1bfe-4979-9a7b-457ed0124cbc",
+      "title": "重启后把源码目录 D:\\Projects\\dsh-edict 改名为 dsh-onenpc，并同步 $srcDir 与 junction",
+      "rationale": "包名已改为 dsh-onenpc，但源码目录仍是 D:\\Projects\\dsh-edict（改目录会让正在运行的 GUI 会话失去 cwd，故本次刻意保留）。目录与包名长期不一致会让后来者困惑，也让 README 里 junction 目标看起来是笔误，需要一次收尾。",
+      "rejected": "放弃在本次会话内直接改目录：会话 cwd 就在该目录下，改名会让后续所有工具调用失效，且 junction 指向需同步更新，风险大于收益。",
+      "sourceSessionId": "session-68570fce-7957-4a45-98f2-ee9aa907d9df",
+      "status": "todo",
+      "tags": [
+        "rename",
+        "cleanup",
+        "follow-up"
+      ],
+      "createdAt": 1793529453093,
+      "updatedAt": 1793529453093
+    }
+  ]
+}

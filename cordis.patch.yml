@@ -1,0 +1,17 @@
+# ============================================================================
+# dsh-onenpc 的 bundle patch —— 把「三省六部」挂进 DSH 配置树
+# ============================================================================
+# 【两条硬规则】（继承自 dsh-pet / dsh-edict-demo 的踩坑注释）
+#   1. id 必须全局唯一，且与包名一致（DSH 商城预检按它比对 entryIds）。
+#   2. `id:` 那一行**绝不能写行尾注释** —— 预检用正则匹配"值 + 直接换行"，
+#      行尾注释会让它抓不到 entry ID，整份提交被判 SUBMISSION_ENTRY_MISSING。
+#
+# 【解析链】
+#   name: 'dsh-onenpc' → 包入口 lib/index.js（宿主半侧 Cordis 插件）
+#   package.json 的 dsh.client → 模块系统把同一包扫描为浏览器插件，
+#   页面侧通过 /plugins/dsh-onenpc/client.js 取到 lib/client.js（exports["./client"]）
+# ============================================================================
+
+- insert:
+    - id: dsh-onenpc
+      name: 'dsh-onenpc'

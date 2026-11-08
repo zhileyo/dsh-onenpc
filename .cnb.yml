@@ -1,0 +1,48 @@
+# GitHub 是真源，CNB 是只读镜像。
+#
+# 方向：CNB 主动从 GitHub **拉取**（tencentcom/git-sync 的 pull 模式）。
+#       仓库里没有任何“推送 GitHub”的流水线，GitHub 侧也没有 workflow，
+#       所以提交只会往一个方向走：本地 → GitHub → CNB。
+#
+# 触发：每小时整点拉一次（定时任务），或在 CNB 页面手动触发一次（web_trigger），
+#       用于刚推完 GitHub 想立刻对齐的场景。
+#
+# 拉取是逐字节镜像 ⇒ 两边 commit SHA 完全一致，随时可以直接比对。代价是
+# .cnb.yml 自己也会出现在 GitHub 仓库里——它就是镜像机制本身，不是噪音。
+#
+# 凭据：GitHub 仓库是公开的，拉取不需要 token。若哪天真源改回私有，在 CNB
+#       的密钥仓库里补 GIT_USERNAME / GIT_ACCESS_TOKEN，再取消下面
+#       username / password 两行的注释即可。
+
+main:
+  # 定时任务：每小时整点拉一次。CNB cron 使用 Asia/Shanghai 时区，最小间隔 5 分钟。
+  "crontab: 0 * * * *":
+    - name: mirror-from-github
+      lock:
+        key: mirror-from-github
+        wait: true
+        cancel-in-wait: true
+      stages:
+        - name: git-sync (pull)
+          image: tencentcom/git-sync
+          settings:
+            target_url: https://github.com/zhileyo/dsh-onenpc.git
+            auth_type: https
+            # username: ${GIT_USERNAME}
+            # password: ${GIT_ACCESS_TOKEN}
+            sync_mode: pull
+
+  # 页面「触发构建」里的手动按钮。
+  web_trigger:
+    - name: mirror-from-github-manual
+      lock:
+        key: mirror-from-github
+        wait: true
+        cancel-in-wait: true
+      stages:
+        - name: git-sync (pull)
+          image: tencentcom/git-sync
+          settings:
+            target_url: https://github.com/zhileyo/dsh-onenpc.git
+            auth_type: https
+            sync_mode: pull

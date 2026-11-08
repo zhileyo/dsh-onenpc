@@ -1,0 +1,72 @@
+{
+  "name": "dsh-onenpc",
+  "version": "0.0.1",
+  "description": "三省六部 · 任务看板：对外一个 NPC，对内一个朝廷 —— 对话框 @npc 直达、任务看板、流程节点详情与产物（把 npc-x 的无人值守多 NPC 协作体系搬进 DeepSeekRuntime）。",
+  "icon": "assets/icon.svg",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "deepseek-runtime",
+    "cordis",
+    "react",
+    "npc",
+    "onenpc",
+    "npc-team",
+    "multi-agent",
+    "orchestration",
+    "kanban",
+    "task-board",
+    "workflow",
+    "npc-x",
+    "three-departments-six-ministries"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "public",
+    "assets/icon.svg",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-connection"
+      ],
+      "platform": "web"
+    },
+    "compatibility": {
+      "dshReleases": {
+        "0.2.1-rc.3": "compatible"
+      }
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.4",
+    "@deepseek-ai/dsh-host-webserver": "^0.2.0-rc.1",
+    "@deepseek-ai/dsh-home-paths": "^0.2.0-rc.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "scripts": {
+    "domain": "node scripts/domain-test.mjs",
+    "smoke": "node scripts/smoke.mjs",
+    "dev": "node scripts/dev-server.mjs",
+    "check": "node scripts/domain-test.mjs && node scripts/smoke.mjs",
+    "check:fast": "node scripts/domain-test.mjs"
+  }
+}

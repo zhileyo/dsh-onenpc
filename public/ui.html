@@ -1,0 +1,965 @@
+<!doctype html>
+<html lang="zh-CN" data-npc-base="">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>三省六部 · 任务看板</title>
+<style>
+  /* ============ 玄青·朱砂 主题（变量挂 :root，主题切换在 <html> 上） ============ */
+  :root {
+    --bg: #0b0f1a; --bg2: #101728; --bg3: #161f36; --line: #232e4d;
+    --fg: #dde4f4; --fg2: #8fa0c4; --fg3: #5a6a8f;
+    --gold: #e0b15e; --red: #e06c6c; --green: #5fbf87; --blue: #5b9cf5; --amber: #d9a441; --purple: #a78bfa; --slate: #7d8aa5;
+    --r: 12px;
+  }
+  :root[data-theme="light"] {
+    --bg: #f4f2ec; --bg2: #ffffff; --bg3: #edeae0; --line: #ddd6c4;
+    --fg: #2a3040; --fg2: #5c6680; --fg3: #8b93a8;
+  }
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: var(--bg); }
+  .npcx, .npcx * { box-sizing: border-box; }
+  /* 一屏显示：根为 100% 弹性列（顶栏固定），滚动全部走 main 内部滚动条（隐藏） */
+  .npcx { height: 100%; display: flex; flex-direction: column; overflow: hidden;
+    background: var(--bg); color: var(--fg);
+    font: 14px/1.6 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif; }
+  .npcx * { scrollbar-width: none; -ms-overflow-style: none; }
+  .npcx *::-webkit-scrollbar { width: 0; height: 0; display: none; }
+  .npcx button { font: inherit; cursor: pointer; color: var(--fg); background: var(--bg3);
+    border: 1px solid var(--line); border-radius: 8px; padding: 5px 12px; }
+  .npcx button:hover { border-color: var(--gold); }
+  .npcx button.primary { background: var(--gold); border-color: var(--gold); color: #1a1408; font-weight: 600; }
+  .npcx button.danger { color: var(--red); border-color: color-mix(in srgb, var(--red) 40%, transparent); }
+  .npcx input, .npcx select, .npcx textarea { font: inherit; color: var(--fg); background: var(--bg2);
+    border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
+  .npcx textarea { width: 100%; resize: vertical; min-height: 64px; }
+  .npcx a { color: var(--blue); text-decoration: none; }
+  .npcx code { background: var(--bg3); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; font-size: 12px; }
+
+  /* ============ 顶栏（固定） ============ */
+  .npcx .topbar { display: flex; align-items: center; gap: 14px; padding: 12px 18px;
+    background: linear-gradient(180deg, var(--bg2), var(--bg)); border-bottom: 1px solid var(--line);
+    flex: none; z-index: 5; flex-wrap: wrap; }
+  .npcx .brand { font-size: 16px; font-weight: 700; letter-spacing: 1px; white-space: nowrap; }
+  .npcx .brand .stage { font-size: 10.5px; color: var(--gold); border: 1px solid color-mix(in srgb, var(--gold) 45%, transparent);
+    border-radius: 20px; padding: 1px 8px; margin-left: 8px; vertical-align: 2px; font-weight: 400; }
+  .npcx .tabs { display: flex; gap: 4px; }
+  .npcx .tabs a { padding: 4px 12px; border-radius: 8px; color: var(--fg2); }
+  .npcx .tabs a.on { color: var(--gold); background: color-mix(in srgb, var(--gold) 12%, transparent); }
+  .npcx .chips { display: flex; gap: 8px; flex: 1; flex-wrap: wrap; }
+  .npcx .chip { font-size: 12px; color: var(--fg2); background: var(--bg3); border: 1px solid var(--line);
+    border-radius: 20px; padding: 2px 10px; white-space: nowrap; }
+  .npcx .chip b { color: var(--fg); }
+  .npcx .topacts { display: flex; gap: 8px; margin-left: auto; }
+
+  /* ============ 看板 ============ */
+  /* ============ 主区（唯一滚动容器，内部滚动条已隐藏） ============ */
+  .npcx main { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
+    padding: 14px 18px 32px; max-width: 1280px; margin: 0 auto; width: 100%; }
+  .npcx .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+  .npcx .pills { display: flex; gap: 6px; }
+  .npcx .pills a { font-size: 12.5px; padding: 3px 12px; border-radius: 20px; border: 1px solid var(--line);
+    color: var(--fg2); cursor: pointer; }
+  .npcx .pills a.on { color: var(--gold); border-color: var(--gold); background: color-mix(in srgb, var(--gold) 10%, transparent); }
+  .npcx .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 12px; }
+  .npcx .tcard { background: var(--bg2); border: 1px solid var(--line); border-radius: var(--r);
+    padding: 13px 15px; display: flex; flex-direction: column; gap: 9px; transition: border-color .15s; }
+  .npcx .tcard:hover { border-color: color-mix(in srgb, var(--gold) 55%, var(--line)); }
+  .npcx .tcard .tt { font-weight: 600; font-size: 14.5px; cursor: pointer; }
+  .npcx .tcard .tt:hover { color: var(--gold); }
+  .npcx .meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12px; color: var(--fg2); }
+  .npcx .tag { font-size: 11px; border-radius: 20px; padding: 1px 8px; border: 1px solid var(--line); white-space: nowrap; }
+  .npcx .tag.tier-S0, .tag.tier-S1 { color: var(--slate); border-color: color-mix(in srgb, var(--slate) 50%, transparent); }
+  .npcx .tag.tier-直 { color: var(--green); border-color: color-mix(in srgb, var(--green) 50%, transparent); }
+  .npcx .tag.tier-M { color: var(--amber); border-color: color-mix(in srgb, var(--amber) 50%, transparent); }
+  .npcx .tag.tier-L { color: var(--red); border-color: color-mix(in srgb, var(--red) 50%, transparent); }
+  .npcx .tag.tier-XL { color: var(--purple); border-color: color-mix(in srgb, var(--purple) 55%, transparent); }
+  .npcx .track { display: flex; gap: 4px; align-items: center; }
+  .npcx .nd { flex: 1; height: 7px; border-radius: 4px; background: var(--bg3); border: 1px solid var(--line); min-width: 14px; }
+  .npcx .nd.running { background: var(--blue); border-color: var(--blue); }
+  .npcx .nd.done { background: var(--green); border-color: var(--green); }
+  .npcx .nd.rejected { background: var(--red); border-color: var(--red); }
+  .npcx .nd.blocked { background: var(--amber); border-color: var(--amber); }
+  .npcx .nd.skipped { background: var(--slate); border-color: var(--slate); opacity: .5; }
+  .npcx .dots { display: inline-flex; gap: 3px; align-items: center; }
+  .npcx .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--red); }
+  .npcx .empty { color: var(--fg3); text-align: center; padding: 60px 0; }
+  .npcx .teamchip { color: var(--fg2); background: var(--bg3); border-radius: 20px; padding: 1px 8px; font-size: 11.5px; }
+
+  /* ============ 任务详情（重设计：精简头部 + 双栏 + 轮次 + 双栏节点详情） ============ */
+  .npcx .crumb { color: var(--fg3); font-size: 12.5px; cursor: pointer; margin-bottom: 6px; }
+  .npcx .crumb:hover { color: var(--gold); }
+  .npcx .ttitle { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .npcx .ttitle h1 { margin: 0; font-size: 17px; flex: 1; min-width: 220px; }
+  .npcx .tctl { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .npcx .sumline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; font-size: 12px; color: var(--fg2); }
+  .npcx .sumline b { color: var(--fg); }
+  .npcx .twocol { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 0; }
+  @media (max-width: 900px) { .npcx .twocol, .npcx .ndeux { grid-template-columns: 1fr; } }
+  .npcx .card2 { background: var(--bg2); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 15px; }
+  .npcx .card2 h3 { margin: 0 0 8px; font-size: 12px; color: var(--fg3); letter-spacing: 1.5px; }
+  .npcx .card2 .req { color: var(--fg2); white-space: pre-wrap; border-left: 3px solid color-mix(in srgb, var(--gold) 50%, transparent); padding-left: 10px; margin: 0; font-size: 13px; }
+  .npcx .acl { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; }
+  .npcx .acl .ai { display: flex; gap: 7px; align-items: baseline; }
+  .npcx .rhead2 { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--fg2); margin: 4px 0 8px; flex-wrap: wrap; }
+  .npcx .rhead2 b { color: var(--gold); }
+  .npcx .oldround { margin-bottom: 10px; }
+  .npcx .oldround > summary { cursor: pointer; color: var(--fg3); font-size: 12.5px; list-style: none; padding: 6px 0; }
+  .npcx .oldround > summary::-webkit-details-marker { display: none; }
+  .npcx .oldround > summary:hover { color: var(--gold); }
+  .npcx .oldround[open] > summary { margin-bottom: 6px; }
+  .npcx .ndeux { display: grid; grid-template-columns: minmax(280px, 5fr) minmax(300px, 7fr); gap: 12px; margin-top: 14px; align-items: start; }
+  .npcx .ncol { background: var(--bg2); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+  .npcx .tabs2 { display: flex; gap: 4px; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+  .npcx .tabbtn { font-size: 12.5px; padding: 3px 12px; border-radius: 20px; border: 1px solid var(--line); background: transparent; color: var(--fg2); cursor: pointer; }
+  .npcx .tabbtn.on { color: var(--gold); border-color: var(--gold); background: color-mix(in srgb, var(--gold) 8%, transparent); }
+  .npcx .deliv { margin-top: 14px; background: linear-gradient(180deg, color-mix(in srgb, var(--gold) 7%, var(--bg2)), var(--bg2)); border-color: color-mix(in srgb, var(--gold) 35%, var(--line)); }
+  .npcx .docform > summary { cursor: pointer; color: var(--fg3); font-size: 12px; list-style: none; }
+  .npcx .docform > summary::-webkit-details-marker { display: none; }
+  .npcx .docform > summary:hover { color: var(--gold); }
+
+  /* ============ 流程节点（按角色分组 · 横向泳道）+ 节点详情（下方内嵌 · 无侧栏） ============ */
+  .npcx .rlane { display: flex; gap: 14px; align-items: stretch; overflow-x: auto; padding: 2px 2px 6px; }
+  .npcx .rgroup { flex: 1 0 auto; min-width: 168px; display: flex; flex-direction: column; gap: 6px; }
+  .npcx .rgroup + .rgroup { border-left: 1px dashed var(--line); padding-left: 14px; }
+  .npcx .rhead { display: flex; align-items: baseline; gap: 6px; font-size: 12.5px; color: var(--fg2); }
+  .npcx .rhead .rbar { width: 4px; height: 13px; border-radius: 2px; background: var(--accent, var(--gold)); align-self: center; flex: none; }
+  .npcx .rhead b { color: var(--fg); font-size: 13px; white-space: nowrap; }
+  .npcx .rnodes { display: flex; flex-direction: column; gap: 6px; }
+  .npcx .nchip { display: inline-flex; align-items: center; gap: 6px; background: var(--bg2);
+    border: 1px solid var(--line); border-left-width: 3px; border-radius: 10px; padding: 6px 10px;
+    cursor: pointer; white-space: nowrap; }
+  .npcx .nchip:hover { border-color: var(--gold); border-left-color: var(--gold); }
+  .npcx .nchip.sel { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 8%, var(--bg2)); }
+  .npcx .nchip.st-running { border-left-color: var(--blue); }
+  .npcx .nchip.st-done { border-left-color: var(--green); }
+  .npcx .nchip.st-rejected { border-left-color: var(--red); }
+  .npcx .nchip.st-blocked { border-left-color: var(--amber); }
+  .npcx .nchip .nstep { font-size: 10.5px; color: var(--fg3); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+  .npcx .nchip .nk { font-weight: 600; }
+  .npcx .ndetail { background: var(--bg2); border: 1px solid var(--line); border-radius: var(--r); padding: 16px 18px;
+    margin-top: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .npcx .ndhead { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .npcx .ndhead h2 { margin: 0; font-size: 15.5px; display: flex; align-items: center; gap: 8px; }
+  .npcx .artbox { background: var(--bg3); border: 1px dashed var(--line); border-radius: 10px; padding: 10px 12px;
+    font-size: 12.5px; color: var(--fg2); }
+  .npcx .arts { display: flex; flex-direction: column; gap: 8px; }
+  .npcx .art { background: var(--bg3); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; }
+  .npcx .art summary { cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 12.5px; list-style: none; flex-wrap: wrap; }
+  .npcx .art summary::-webkit-details-marker { display: none; }
+  .npcx .artbody { margin-top: 8px; border-top: 1px dashed var(--line); padding-top: 8px; max-height: 320px; overflow: auto; }
+  .npcx .artline { font-size: 12.5px; color: var(--fg2); padding: 4px 2px; }
+  .npcx .copybtn { font-size: 11.5px; padding: 2px 10px; margin-top: 6px; }
+  .npcx .diffview { margin: 0; font: 11.5px/1.5 Consolas, "Courier New", monospace; white-space: pre; }
+  .npcx .dl { display: block; padding: 0 6px; }
+  .npcx .dl.add { background: rgba(95,191,135,.14); color: var(--green); }
+  .npcx .dl.del { background: rgba(224,108,108,.13); color: var(--red); }
+  .npcx .dl.hunk { color: var(--blue); }
+
+  /* ============ 状态胶囊 ============ */
+  .npcx .pill { font-size: 11.5px; border-radius: 20px; padding: 1px 10px; white-space: nowrap; border: 1px solid var(--line); color: var(--fg2); }
+  .npcx .pill.running { color: var(--blue); border-color: var(--blue); background: color-mix(in srgb, var(--blue) 10%, transparent); }
+  .npcx .pill.done { color: var(--green); border-color: var(--green); }
+  .npcx .pill.rejected { color: var(--red); border-color: var(--red); background: color-mix(in srgb, var(--red) 10%, transparent); }
+  .npcx .pill.blocked { color: var(--amber); border-color: var(--amber); }
+  .npcx .pill.skipped { color: var(--slate); }
+
+  /* ============ 公文 / 详情网格 ============ */
+  .npcx .dmeta { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 12.5px; color: var(--fg2);
+    background: var(--bg3); border-radius: 10px; padding: 10px 12px; }
+  .npcx .dmeta b { color: var(--fg); font-weight: 600; }
+  .npcx .docs { display: flex; flex-direction: column; gap: 8px; }
+  .npcx .doc { background: var(--bg3); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; }
+  .npcx .doc summary { cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 12.5px; list-style: none; }
+  .npcx .doc summary::-webkit-details-marker { display: none; }
+  .npcx .doc .dtext { white-space: pre-wrap; font-size: 12.5px; color: var(--fg2); margin-top: 8px; border-top: 1px dashed var(--line); padding-top: 8px; }
+  .npcx .doctype { font-size: 11px; border-radius: 4px; padding: 0 6px; border: 1px solid var(--line); }
+  .npcx .doctype.诏令 { color: var(--gold); border-color: color-mix(in srgb, var(--gold) 50%, transparent); }
+  .npcx .doctype.回奏 { color: var(--blue); border-color: color-mix(in srgb, var(--blue) 50%, transparent); }
+  .npcx .doctype.封驳 { color: var(--red); border-color: color-mix(in srgb, var(--red) 50%, transparent); }
+  .npcx .doctype.经验卡 { color: var(--green); border-color: color-mix(in srgb, var(--green) 50%, transparent); }
+  .npcx .sects { font-size: 12.5px; font-weight: 600; color: var(--fg3); letter-spacing: 1px; margin-top: 4px; }
+  .npcx .acts { display: flex; gap: 8px; flex-wrap: wrap; }
+  .npcx .dform { display: flex; flex-direction: column; gap: 8px; }
+  .npcx .dform .row2 { display: flex; gap: 8px; }
+
+  /* ============ 弹层 / 角色页 / 杂项 ============ */
+  .npcx .modal { position: fixed; inset: 0; z-index: 10; display: flex; align-items: flex-start; justify-content: center;
+    padding-top: 10vh; background: rgba(0,0,0,.5); }
+  .npcx .mbox { background: var(--bg2); border: 1px solid var(--line); border-radius: var(--r); padding: 20px;
+    width: min(520px, 92vw); display: flex; flex-direction: column; gap: 10px; }
+  .npcx .mbox h3 { margin: 0; font-size: 15.5px; }
+  .npcx .mbox label { font-size: 12px; color: var(--fg2); display: flex; flex-direction: column; gap: 4px; }
+  .npcx .rgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+  .npcx .rcard { background: var(--bg2); border: 1px solid var(--line); border-radius: var(--r); padding: 13px 15px; }
+  .npcx .rcard .rn { font-weight: 700; }
+  .npcx .rcard .rs { color: var(--gold); font-size: 12px; margin: 3px 0 6px; }
+  .npcx .rcard .rd { color: var(--fg2); font-size: 12.5px; }
+  .npcx .orghead { margin: 18px 0 8px; font-size: 13px; color: var(--fg3); letter-spacing: 2px; }
+  .npcx .toast { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%); background: var(--bg3);
+    border: 1px solid var(--gold); color: var(--fg); border-radius: 10px; padding: 8px 18px; z-index: 20; font-size: 13px; }
+  .npcx .hidden { display: none !important; }
+  .npcx .note { font-size: 12px; color: var(--fg3); }
+  @media (max-width: 640px) { .npcx .topbar { gap: 8px; } .npcx main { padding: 12px 10px 40px; } }
+</style>
+</head>
+<body>
+<div id="app" class="npcx">
+  <header class="topbar">
+    <div class="brand">🏛️ 三省六部<span class="stage" id="stage">…</span></div>
+    <nav class="tabs" id="tabs">
+      <a href="#/board" data-v="board">任务看板</a>
+      <a href="#/roles" data-v="roles">角色总览</a>
+    </nav>
+    <div class="chips" id="chips"></div>
+    <div class="topacts">
+      <button id="btn-theme" title="明暗主题">🌙</button>
+      <button id="btn-refresh" title="立即刷新">⟳</button>
+      <button id="btn-new" class="primary">📜 下旨</button>
+    </div>
+  </header>
+  <main id="view"></main>
+  <div id="modalRoot"></div>
+  <div id="toastRoot"></div>
+</div>
+<script>
+(() => {
+  'use strict'
+  const BASE = document.documentElement.getAttribute('data-npc-base') || ''
+  const $ = (id) => document.getElementById(id)
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+
+  const S = {
+    v: 0, data: null,
+    view: 'board', taskId: null,
+    filter: 'active', archivedTasks: null,
+    selNodeId: null,                 // 详情页当前选中的节点（详情与产物内嵌展示在节点区下方）
+    tab: null,                       // 节点详情右栏 tab：'art' | 'docs'
+    theme: localStorage.getItem('npcx-theme') || 'dark',
+  }
+
+  /** 机构 → 主题色（角色分组头的色条） */
+  const ORG_COLOR = {
+    中书省: 'var(--gold)', 门下省: 'var(--purple)', 尚书省: 'var(--blue)', 六部: 'var(--green)', 外协: 'var(--slate)',
+  }
+
+  async function api(path, opts) {
+    const res = await fetch(BASE + path, {
+      headers: { 'content-type': 'application/json' },
+      ...opts,
+    })
+    const json = await res.json().catch(() => ({}))
+    if (!res.ok) throw Object.assign(new Error(json.message || json.error || res.statusText), { code: json.error, status: res.status })
+    return json
+  }
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+
+  function toast(msg) {
+    $('toastRoot').innerHTML = `<div class="toast">${esc(msg)}</div>`
+    clearTimeout(toast._t)
+    toast._t = setTimeout(() => { $('toastRoot').innerHTML = '' }, 2600)
+  }
+
+  function fmtTime(iso) {
+    if (!iso) return '—'
+    const d = new Date(iso)
+    const diff = Date.now() - d.getTime()
+    if (diff < 60_000) return '刚刚'
+    if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} 分钟前`
+    if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)} 小时前`
+    return `${d.getMonth() + 1}-${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  }
+
+  const cat = () => S.data?.catalog ?? {}
+  const stateMeta = (st) => cat().nodeStateMeta?.[st] ?? { label: st, tone: 'muted' }
+  const kindMeta = (k) => cat().nodeKindMeta?.[k] ?? { icon: '•', desc: '' }
+  const originMeta = (o) => cat().originMeta?.[o] ?? { label: o, icon: '•' }
+  const taskById = (id) => S.data?.tasks?.find((t) => t.id === id) ?? (S.archivedTasks ?? []).find((t) => t.id === id)
+  const orgOfRole = (role) => (cat().roles ?? []).find((r) => r.name === role)?.org ?? ''
+
+  /** 节点按承接角色分组（保持首次出现顺序，即流程顺序） */
+  function roleGroups(task) {
+    const groups = []
+    const byRole = new Map()
+    for (const n of task.nodes ?? []) {
+      if (!byRole.has(n.role)) {
+        const g = { role: n.role, nodes: [] }
+        byRole.set(n.role, g)
+        groups.push(g)
+      }
+      byRole.get(n.role).nodes.push(n)
+    }
+    return groups
+  }
+
+  /* ================= 渲染 ================= */
+
+  function renderChips() {
+    const m = S.data?.metrics
+    const s = S.data?.success
+    let html = m
+      ? `<span class="chip">📋 活跃 <b>${m.active}</b></span><span class="chip">🔵 进行中 <b>${m.running}</b></span><span class="chip">📦 已归档 <b>${m.archived}</b></span>`
+      : ''
+    if (s) {
+      const pct = (v) => (v === null || v === undefined ? '—' : Math.round(v * 100) + '%')
+      const autoOk = s.auto.rate !== null && s.auto.rate >= 0.8
+      const rejectRed = s.reject.rate !== null && s.reject.rate > 0.5
+      html += `<span class="chip" title="指标① 全自动完成率 = 零干预完结任务 ÷ 已完结任务（稳态目标 ≥80%）">🤖 全自动 <b style="color:${autoOk ? 'var(--green)' : 'inherit'}">${pct(s.auto.rate)}</b></span>`
+      html += `<span class="chip" title="指标② 封驳触发率 = 发生过封驳的任务 ÷ 做过施工的任务（稳态 ≤30%，>50% 红线）">⚖ 封驳 <b style="color:${rejectRed ? 'var(--red)' : 'inherit'}">${pct(s.reject.rate)}</b></span>`
+      html += `<span class="chip" title="指标③ 人工干预次数 ÷ 已建任务（稳态 ≤1，干预清单写死 domain.MANUAL_ACTIONS）">🙋 干预 <b>${s.intervention.perTask ?? '—'}</b></span>`
+    }
+    $('chips').innerHTML = html
+    $('stage').textContent = S.data?.stage ?? '…'
+  }
+
+  function renderTabs() {
+    document.querySelectorAll('#tabs a').forEach((a) => a.classList.toggle('on', a.dataset.v === (S.view === 'task' ? 'board' : S.view)))
+  }
+
+  function nodeTrack(nodes) {
+    return `<div class="track" title="${esc(nodes.map((n) => `${n.kind}:${stateMeta(n.state).label}`).join(' → '))}">` +
+      nodes.map((n) => `<span class="nd ${esc(n.state)}" title="${esc(n.kind)} · ${esc(stateMeta(n.state).label)}"></span>`).join('') +
+      `</div>`
+  }
+
+  function renderBoard() {
+    const list = S.filter === 'archived' ? (S.archivedTasks ?? []) : (S.data?.tasks ?? [])
+    const count = list.length
+    $('view').innerHTML = `
+      <div class="toolbar">
+        <div class="pills">
+          <a data-f="active" class="${S.filter === 'active' ? 'on' : ''}">🔥 进行中</a>
+          <a data-f="archived" class="${S.filter === 'archived' ? 'on' : ''}">📦 已归档</a>
+        </div>
+        <span class="note">${count} 单${S.filter === 'archived' ? '（点卡片查看，可取消归档）' : ''}</span>
+      </div>
+      ${count === 0 ? `<div class="empty">${S.filter === 'archived' ? '还没有归档的任务' : '还没有任务 —— 点右上「📜 下旨」，或在对话框输入 /npc'}<br><span class="note">M0 骨架：看板与流程节点先行，@npc 办差 M2 接入</span></div>` : ''}
+      <div class="grid">
+        ${list.map((t) => `
+          <div class="tcard">
+            <div class="tt" data-open="${esc(t.id)}">${esc(t.title)}</div>
+            <div class="meta">
+              <span class="tag tier-${esc(t.triage)}" title="${esc(t.triageReason ?? '')}">${esc(t.triage)}</span>
+              <span class="tag" title="任务来源">${esc(originMeta(t.origin).icon)} ${esc(originMeta(t.origin).label)}</span>
+          ${t.pipeline?.auto ? '<span class="tag" style="color:var(--blue); border-color:var(--blue)">▶ 自动中</span>' : ''}
+          ${t.pipeline?.stopped ? `<span class="tag" style="color:var(--amber); border-color:var(--amber)" title="${esc(t.pipeline.stopped.why ?? '')}">⏹ ${esc(t.pipeline.stopped.reason)}</span>` : ''}
+          ${(S.data?.executions ?? []).some((e) => e.taskId === t.id && e.status === 'running')
+            ? '<span class="tag" style="color:var(--blue); border-color:var(--blue)">⚙ 办差中</span>'
+            : ''}
+          ${t.acceptance?.total ? `<span class="tag" title="验收清单">✅ ${t.acceptance.pass}/${t.acceptance.total}</span>` : ''}
+              ${t.counters?.封驳 ? `<span class="dots" title="封驳计数">${'<span class="dot"></span>'.repeat(Math.min(t.counters.封驳, 5))}</span>` : ''}
+              <span title="公文数">📄 ${t.docCount ?? 0}</span>
+              <span style="margin-left:auto">${fmtTime(t.updatedAt)}</span>
+            </div>
+            ${nodeTrack(t.nodes ?? [])}
+            <div class="meta">
+              ${(t.team ?? []).slice(0, 4).map((r) => `<span class="teamchip">${esc(r)}</span>`).join('')}
+              ${(t.team ?? []).length > 4 ? `<span class="teamchip">+${t.team.length - 4}</span>` : ''}
+              <span style="margin-left:auto; display:flex; gap:6px">
+                <button data-open="${esc(t.id)}" style="padding:2px 10px">详情</button>
+                <button data-arch="${esc(t.id)}" data-to="${t.archived ? 'unarchive' : 'archive'}" style="padding:2px 10px">${t.archived ? '找回' : '归档'}</button>
+              </span>
+            </div>
+          </div>`).join('')}
+      </div>`
+  }
+
+  function stateActions(task, node) {
+    const btn = (action, label, cls = '') =>
+      `<button data-act="${action}" data-node="${esc(node.id)}" class="${cls}">${label}</button>`
+    const map = {
+      pending: [btn('start', '▶ 开始', 'primary'), btn('skip', '⤵ 跳过')],
+      running: [btn('done', '✅ 完成', 'primary'), btn('reject', '🔴 封驳', 'danger'), btn('block', '⚠ 受阻')],
+      blocked: [btn('unblock', '↩ 解除受阻')],
+      rejected: [btn('redo', '🔄 打回重做', 'primary')],
+    }
+    return (map[node.state] ?? []).join('')
+  }
+
+  /** 产物区渲染：diff / 报告懒加载（点开才拉内容），未跟踪文件列路径 */
+  function renderArtifacts(node) {
+    const arts = node.artifacts ?? []
+    if (!arts.length) {
+      return '<div class="artbox">🧩 产物区：暂无产物 —— 点「⚙ 交办」起真子会话后，这里展示 git diff（基线比对）、执行汇报与新文件。</div>'
+    }
+    return `<div class="arts">${arts.map((a) => {
+      if (a.kind === 'diff') {
+        const files = (a.files ?? []).map((f) => esc(f.path)).join('、') || '（无文件变更）'
+        return `<details class="art" data-artref="${esc(a.ref ?? '')}">
+          <summary><span class="doctype 回奏">diff</span> ${esc(a.summary ?? '')} <span class="note">${files}</span></summary>
+          <div class="artbody" data-art="${esc(a.ref ?? '')}"><span class="note">加载中…</span></div>
+        </details>`
+      }
+      if (a.kind === 'report') {
+        return `<details class="art" data-artref="${esc(a.ref ?? '')}">
+          <summary><span class="doctype 经验卡">报告</span> ${esc(a.summary ?? '')}</summary>
+          <div class="artbody" data-art="${esc(a.ref ?? '')}"><span class="note">加载中…</span></div>
+          <button class="copybtn" data-copy="${esc(a.ref ?? '')}">📋 复制全文</button>
+        </details>`
+      }
+      if (a.kind === 'file') {
+        return `<div class="artline">📎 <code>${esc(a.path)}</code> <span class="note">${esc(a.summary ?? '')}</span></div>`
+      }
+      return `<div class="artline">ℹ️ ${esc(a.summary ?? '')}</div>`
+    }).join('')}</div>`
+  }
+
+  function diffView(text) {
+    return '<pre class="diffview">' + String(text ?? '').split('\n').map((line) => {
+      const cls = line.startsWith('+') && !line.startsWith('+++') ? ' add'
+        : line.startsWith('-') && !line.startsWith('---') ? ' del'
+        : line.startsWith('@@') ? ' hunk' : ''
+      return `<span class="dl${cls}">${esc(line) || ' '}</span>`
+    }).join('\n') + '</pre>'
+  }
+
+  async function loadArtifact(ref, box, asDiff) {
+    try {
+      const r = await api(`/artifacts/${ref.split('/').map(encodeURIComponent).join('/')}`)
+      box.innerHTML = asDiff ? diffView(r.text) : `<pre class="diffview">${esc(r.text)}</pre>`
+      box.setAttribute('data-loaded', '1')
+    } catch (error) {
+      box.innerHTML = `<span class="note">加载失败：${esc(error.message)}</span>`
+    }
+  }
+
+  /** 节点 chip（紧凑） */
+  function chipHtml(n, sel, detail) {
+    const dn = detail?.nodes?.find((x) => x.id === n.id)
+    return `<div class="nchip st-${esc(n.state)} ${sel === n.id ? 'sel' : ''}" data-node="${esc(n.id)}"
+                 title="${esc(kindMeta(n.kind).desc)}">
+      <span class="nstep">${esc(n.id)}</span>
+      <span>${esc(kindMeta(n.kind).icon)}</span>
+      <span class="nk">${esc(n.kind)}</span>
+      <span class="pill ${esc(n.state)}">${esc(stateMeta(n.state).label)}</span>
+      ${dn?.docs?.length ? '<span class="note">📄</span>' : ''}
+      ${dn?.artifacts?.length ? '<span class="note">🧩</span>' : ''}
+    </div>`
+  }
+
+  /** 角色泳道（任意节点子集，用于轮次渲染） */
+  function laneHtml(nodes, sel, detail) {
+    const groups = roleGroups({ nodes })
+    if (!groups.length) return '<div class="note">本轮暂无节点。</div>'
+    return `<div class="rlane">${groups.map((g) => `
+      <div class="rgroup">
+        <div class="rhead">
+          <span class="rbar" style="--accent:${ORG_COLOR[orgOfRole(g.role)] ?? 'var(--gold)'}"></span>
+          <b>${esc(g.role)}</b>
+        </div>
+        <div class="rnodes">${g.nodes.map((n) => chipHtml(n, sel, detail)).join('')}</div>
+      </div>`).join('')}</div>`
+  }
+
+  const roundLabel = (r) => (r.verdict === 'accepted' ? '✅ 验收通过' : r.verdict === 'gap' ? '🔁 未满足→下一轮' : r.verdict === 'pending' ? '进行中' : esc(r.verdict ?? ''))
+
+  function renderTask() {
+    const t = taskById(S.taskId)
+    if (!t) { $('view').innerHTML = `<div class="empty">任务不存在或已归档 <a href="#/board">回看板</a></div>`; return }
+    const detail = S.detail && S.detail.id === t.id ? S.detail : null
+    const tiers = cat().tiers ?? []
+    const rounds = t.rounds ?? [{ n: 1, goal: '', verdict: 'pending' }]
+    const cur = rounds[rounds.length - 1]
+    const cap = cat().budget ?? {}
+    const b = detail?.budget ?? {}
+    const acc = detail?.acceptance ?? []
+    const accDone = acc.filter((a) => a.state === 'pass').length
+    const execRunning = (S.data?.executions ?? []).some((e) => e.taskId === t.id && e.status === 'running')
+    const pipeBtns = `
+      <button data-pipe="${t.pipeline?.auto ? 'off' : 'on'}">${t.pipeline?.auto ? '⏸ 停自动' : '▶ 自动流转'}</button>
+      <button data-pipe="step" title="单步推进（调试用）">⏭ 走一步</button>
+      ${t.pipeline?.stopped ? '<button data-pipe="reset" title="清停机 + 封驳计数归零">↻ 重开</button>' : ''}`
+    $('view').innerHTML = `
+      <div class="ttop">
+        <div class="crumb" data-nav="#/board">← 任务看板</div>
+        <div class="ttitle">
+          <h1>${esc(t.title)}</h1>
+          <div class="tctl">
+            <select id="triageSel" title="判级（手动改级，留审计）：${esc(t.triageReason ?? '')}">
+              ${tiers.map((x) => `<option value="${esc(x)}" ${x === t.triage ? 'selected' : ''}>${esc(x)} ${esc((cat().tierMeta ?? {})[x]?.label ?? '')}</option>`).join('')}
+            </select>
+            ${pipeBtns}
+          </div>
+        </div>
+        <div class="sumline">
+          <span class="tag tier-${esc(t.triage)}">${esc(t.triage)} · ${esc((cat().tierMeta ?? {})[t.triage]?.label ?? '')}</span>
+          <span class="tag">${esc(originMeta(t.origin).icon)} ${esc(originMeta(t.origin).label)}</span>
+          ${t.pipeline?.auto ? '<span class="tag" style="color:var(--blue); border-color:var(--blue)">▶ 自动中</span>' : ''}
+          ${t.pipeline?.stopped ? `<span class="tag" style="color:var(--amber); border-color:var(--amber)" title="${esc(t.pipeline.stopped.why ?? '')}">⏹ ${esc(t.pipeline.stopped.reason)}</span>` : ''}
+          ${execRunning ? '<span class="tag" style="color:var(--blue); border-color:var(--blue)">⚙ 办差中</span>' : ''}
+          <span>封驳 <b>${t.counters?.封驳 ?? 0}</b>/${cat().rejectCap ?? 3}</span>
+          <span>第 <b>${cur.n}</b> 轮</span>
+          ${acc.length ? `<span>清单 <b>${accDone}</b>/${acc.length}</span>` : ''}
+          <span>预算 <b>${b.calls ?? 0}</b>/${cap.calls ?? '—'} · <b>${fmtTokens(b.tokens ?? 0)}</b>/${cap.tokens ?? '—'}</span>
+          <span style="margin-left:auto">更新 ${fmtTime(t.updatedAt)}</span>
+        </div>
+        ${t.pipeline?.stopped?.why ? `<div class="note" style="margin-top:4px; color:var(--amber)">停因：${esc(t.pipeline.stopped.why)}</div>` : ''}
+      </div>
+      <div class="twocol">
+        <div class="card2">
+          <h3>需求</h3>
+          <div class="req">${esc(detail?.requirement || t.requirement || '（无）')}</div>
+        </div>
+        <div class="card2">
+          <h3>验收清单（唯一增删权=调度方）</h3>
+          ${acc.length ? `<div class="acl">${acc.map((a) => `<div class="ai"><span>${a.state === 'pass' ? '✅' : a.state === 'fail' ? '❌' : '⬜'}</span><span>${esc(a.text)}</span></div>`).join('')}</div>` : '<div class="note">立项节点完成后自动生成分条清单。</div>'}
+        </div>
+      </div>
+      ${(() => {
+        // [0 立项] 在循环外（round 0）——单独一行小泳道，永在当前轮之前
+        const setup = (t.nodes ?? []).filter((n) => n.round === 0)
+        return setup.length ? `<div class="rhead2" style="margin-top:2px"><span style="color:var(--fg3)">循环外</span></div>${laneHtml(setup, S.selNodeId, detail)}` : ''
+      })()}
+      ${rounds.map((r) => {
+        const rn = (t.nodes ?? []).filter((n) => n.round === r.n)
+        if (!rn.length) return ''
+        const lane = laneHtml(rn, S.selNodeId, detail)
+        if (r.n === cur.n) {
+          return `<div class="rblock"><div class="rhead2"><b>第 ${r.n} 轮</b><span>· 目标：${esc(r.goal || '初始需求')}</span><span class="pill ${r.verdict === 'accepted' ? 'done' : r.verdict === 'gap' ? 'blocked' : 'running'}">${roundLabel(r)}</span></div>${lane}</div>`
+        }
+        return `<details class="oldround"><summary>第 ${r.n} 轮 · ${esc(r.goal || '初始需求')} · ${roundLabel(r)}</summary>${lane}</details>`
+      }).join('')}
+      <div id="ndetail"></div>
+      ${detail?.delivery ? `<div class="card2 deliv"><h3>📜 交付报告${detail.delivery.simulated ? '（模拟）' : ''} · ${esc(fmtTime(detail.delivery.at))}</h3><div class="req">${esc(detail.delivery.text)}</div></div>` : ''}`
+    renderNodeDetail()
+  }
+
+  const fmtTokens = (n) => (Number(n) >= 10000 ? `${Math.round(n / 1000)}k` : String(n ?? 0))
+
+  /** 节点详情：双栏（左=概况+动作+执行；右=产物/公文 tabs），不用侧栏 */
+  function renderNodeDetail() {
+    const box = document.getElementById('ndetail')
+    if (!box) return
+    const detail = S.detail
+    if (!detail) { box.innerHTML = ''; return }
+    const node = (detail.nodes ?? []).find((n) => n.id === S.selNodeId)
+    if (!node) {
+      box.innerHTML = `<div class="note" style="padding:2px">点上方任一节点，这里展开该节点的详情、产物与公文。</div>`
+      return
+    }
+    if (!S.tab) S.tab = (node.artifacts ?? []).length ? 'art' : 'docs'
+    const stepNo = detail.nodes.indexOf(node) + 1
+    const exec = (S.data?.executions ?? []).find((e) => e.sessionId === node.sessionId)
+      ?? (node.sessionId ? (S.data?.executions ?? []).find((e) => e.id === node.sessionId) : null)
+    const dispatchBtn = node.state === 'pending' && S.data?.agentsReady
+      ? `<button data-dispatch="${esc(node.id)}" class="primary">⚙ 交办（真子会话）</button>`
+      : node.state === 'pending'
+        ? `<button disabled title="宿主无子会话环境（ctx.agents 缺席），只能人手推进">⚙ 交办（不可用）</button>`
+        : ''
+    const stopBtn = exec?.status === 'running'
+      ? `<button data-stop="${esc(node.id)}" class="danger">⏹ 叫停执行</button>`
+      : ''
+    const docsHtml = `
+      <div class="docs">
+        ${(node.docs ?? []).length === 0 ? '<div class="note">本节点还没有公文。</div>' : ''}
+        ${(node.docs ?? []).slice().reverse().map((d) => `
+          <details class="doc">
+            <summary>
+              <span class="doctype ${esc(d.type)}">${esc(d.type)}</span>
+              ${d.from ? `<span>${esc(d.from)} → ${esc(d.to ?? '')}</span>` : ''}
+              <span style="margin-left:auto; color:var(--fg3)">${esc(fmtTime(d.at))}</span>
+            </summary>
+            <div class="dtext">${esc(d.text)}</div>
+          </details>`).join('')}
+      </div>
+      <details class="docform">
+        <summary>➕ 追加公文（M0 测试写入位 · M2 起由执行层写）</summary>
+        <div class="dform" style="margin-top:8px">
+          <div class="row2">
+            <select id="docType">${(cat().docTypes ?? []).map((x) => `<option>${esc(x)}</option>`).join('')}</select>
+            <input id="docFrom" placeholder="发文方（可空）" style="flex:1">
+          </div>
+          <textarea id="docText" placeholder="公文正文…"></textarea>
+          <button class="primary" id="docSubmit" style="align-self:flex-end">递 公文</button>
+        </div>
+      </details>`
+    box.innerHTML = `
+      <div class="ndeux">
+        <div class="ncol">
+          <div class="ndhead">
+            <h2>${esc(kindMeta(node.kind).icon)} ${esc(node.kind)}
+              <span class="pill ${esc(node.state)}">${esc(stateMeta(node.state).label)}</span>
+            </h2>
+            <span class="teamchip">${esc(node.role)}</span>
+            <span class="nstep" style="font-size:10.5px; color:var(--fg3); border:1px solid var(--line); border-radius:4px; padding:0 4px">第 ${stepNo}/${detail.nodes.length} 步 · 第 ${node.round} 轮</span>
+          </div>
+          <div class="acts">${stateActions(detail, node)}${dispatchBtn}${stopBtn}</div>
+          <div class="dmeta">
+            <span>起止</span><span>${esc(node.startedAt ? fmtTime(node.startedAt) : '—')} ~ ${esc(node.endedAt ? fmtTime(node.endedAt) : node.state === 'running' ? '进行中' : '—')}</span>
+            <span>用量</span><span>tokens ${node.tokens ?? 0} · 调用 ${node.calls ?? 0}</span>
+            <span>git基线</span><span>${node.gitBaseline?.head
+              ? `${esc(node.gitBaseline.head.slice(0, 10))} · ${esc(node.gitBaseline.branch ?? '')}${node.gitBaseline.dirty ? ' · <b style="color:var(--amber)">⚠ 非净</b>' : ''}`
+              : esc(node.gitBaseline?.note ?? '—（交办前记录）')}</span>
+            ${node.stopReason ? `<span>停因</span><span style="color:var(--red)">${esc(node.stopReason)}</span>` : ''}
+          </div>
+          ${exec ? `<div class="dmeta" style="border:1px solid ${exec.status === 'running' ? 'var(--blue)' : 'var(--line)'}">
+            <span>执行</span><b>${esc(exec.id)}</b>
+            <span>状态</span><span>${esc(exec.status)}${exec.model ? ` · ${esc(exec.provider ?? '')}/${esc(exec.model)}` : ''}</span>
+            <span>产出</span><span>${exec.chars ?? 0} 字 · 工具 ${exec.calls ?? 0} · tokens ${exec.tokens?.total ?? 0}</span>
+            ${exec.error ? `<span>错误</span><span style="color:var(--red)">${esc(exec.error)}</span>` : ''}
+          </div>` : ''}
+        </div>
+        <div class="ncol">
+          <div class="tabs2">
+            <button class="tabbtn ${S.tab === 'art' ? 'on' : ''}" data-tab="art">产物 ${(node.artifacts ?? []).length}</button>
+            <button class="tabbtn ${S.tab === 'docs' ? 'on' : ''}" data-tab="docs">公文 ${(node.docs ?? []).length}</button>
+          </div>
+          ${S.tab === 'art' ? renderArtifacts(node) : docsHtml}
+        </div>
+      </div>`
+  }
+
+  function renderRoles() {
+    const orgs = cat().orgs ?? []
+    const roles = cat().roles ?? []
+    $('view').innerHTML = `
+      <div class="orghead" style="margin-top:0">角色注册表（12 角色 · 来自 npc-x 三省六部体系）</div>
+      ${orgs.map((org) => `
+        <div class="orghead">${esc(org)}</div>
+        <div class="rgrid">
+          ${roles.filter((r) => r.org === org).map((r) => `
+            <div class="rcard">
+              <div class="rn">${r.isDispatcher ? '👑 ' : ''}${esc(r.name)}</div>
+              <div class="rs">${esc(r.slogan)}</div>
+              <div class="rd">${esc(r.duty)}</div>
+            </div>`).join('')}
+        </div>`).join('')}
+      <div class="orghead">执行配置</div>
+      <div class="rcard" style="display:flex; flex-direction:column; gap:8px">
+        <div class="rd">子会话环境：${S.data?.agentsReady
+          ? '<b style="color:var(--green)">✅ 可用</b>（可交办真子会话）'
+          : '<b style="color:var(--red)">❌ 不可用</b>（如实降级：只能人手推进节点）'}</div>
+        <div style="display:flex; gap:8px">
+          <input id="cwdInput" value="${esc(S.data?.config?.defaultCwd ?? '')}"
+            placeholder="默认工作目录（绝对路径——NPC 在此改代码/产出，交办前记 git 基线）" style="flex:1">
+          <button id="cwdSave">保存</button>
+        </div>
+        <label style="display:flex; gap:6px; align-items:center; font-size:12.5px; color:var(--fg2)">
+          <input type="checkbox" id="acCommit" ${S.data?.config?.autoCommit ? 'checked' : ''}>
+          收口自动提交（npc-x §8[5 自动合并] 的本机等价物；关掉后收口只产说明不碰 git）
+        </label>
+        <div class="note">交办前会在此目录执行 git rev-parse 记基线，节点结束时截 git diff 存产物；非 git 目录会如实标注、只留文本产物。</div>
+      </div>
+      <div class="note" style="margin-top:16px">召 NPC：对话框 <code>/npc &lt;角色&gt; &lt;需求&gt;</code>、消息里 <code>@角色名</code>，或输入框左侧 <code>🏯</code> 按钮。</div>`
+  }
+
+  function render() {
+    if (!S.data) return
+    document.documentElement.setAttribute('data-theme', S.theme)
+    $('btn-theme').textContent = S.theme === 'dark' ? '🌙' : '☀️'
+    renderChips()
+    renderTabs()
+    if (S.view === 'board') renderBoard()
+    else if (S.view === 'task') renderTask()
+    else if (S.view === 'roles') renderRoles()
+  }
+
+  /* ================= 下旨弹层 ================= */
+
+  function openNewTask() {
+    const tiers = cat().tiers ?? []
+    const roles = cat().roles ?? []
+    $('modalRoot').innerHTML = `
+      <div class="modal" data-close-modal="1">
+        <div class="mbox">
+          <h3>📜 下旨</h3>
+          <label>标题（至少 2 字）<input id="ntTitle" placeholder="一句话说清要什么"></label>
+          <label>需求详情（可空）<textarea id="ntReq" placeholder="验收标准、范围、约束…"></textarea></label>
+          <label>判级
+            <select id="ntTier">
+              <option value="">自动（流水线首步 LLM 主判，失败落 M 兜底）</option>
+              ${tiers.map((x) => `<option value="${esc(x)}">${esc(x)} ${esc((cat().tierMeta ?? {})[x]?.label ?? '')} · ${esc((cat().tierMeta ?? {})[x]?.team ?? '')}</option>`).join('')}
+            </select>
+          </label>
+          <label>入口角色
+            <select id="ntRole">${roles.map((r) => `<option value="${esc(r.name)}" ${r.isDispatcher ? 'selected' : ''}>${esc(r.name)}</option>`).join('')}</select>
+          </label>
+          <div style="display:flex; gap:8px; justify-content:flex-end">
+            <button data-close-modal="1">取消</button>
+            <button class="primary" id="ntSubmit">📜 下旨</button>
+          </div>
+        </div>
+      </div>`
+  }
+  function closeModal() { $('modalRoot').innerHTML = '' }
+
+  /* ================= 动作 ================= */
+
+  async function refresh() {
+    const r = await api('/state?since=0&timeout=0')
+    S.v = r.v
+    S.data = r
+    if (S.view === 'task') await loadDetail(S.taskId)
+    if (S.filter === 'archived') await loadArchived()
+    render()
+  }
+
+  async function loadDetail(id) {
+    if (!id) return
+    try {
+      const r = await api(`/tasks/${encodeURIComponent(id)}`)
+      S.detail = r.task
+      // 选中的节点若已不存在（改级重排），清掉选中态
+      if (S.selNodeId && !S.detail.nodes.some((n) => n.id === S.selNodeId)) S.selNodeId = null
+    } catch {
+      S.detail = null
+    }
+  }
+
+  async function loadArchived() {
+    try {
+      const r = await api('/tasks?archived=1')
+      S.archivedTasks = r.tasks
+    } catch {
+      S.archivedTasks = []
+    }
+  }
+
+  async function doAction(taskId, action, nodeId, remark) {
+    try {
+      await api(`/tasks/${encodeURIComponent(taskId)}/action`, { method: 'POST', body: JSON.stringify({ action, nodeId, remark }) })
+      await refresh()
+      toast(`${action} ✓`)
+    } catch (error) {
+      toast(`✗ ${error.message}`)
+    }
+  }
+
+  /* ================= 事件 ================= */
+
+  document.addEventListener('click', async (event) => {
+    const el = event.target.closest('[data-open],[data-arch],[data-act],[data-node],[data-nav],[data-f],[data-close-modal],[data-dispatch],[data-stop],[data-copy],[data-pipe],[data-tab]')
+    if (!el) return
+    if (el.dataset.tab) { S.tab = el.dataset.tab; renderNodeDetail(); return }
+    if (el.dataset.open) { location.hash = `#/task/${el.dataset.open}`; return }
+    if (el.dataset.pipe) {
+      const mode = el.dataset.pipe
+      try {
+        if (mode === 'step') {
+          const r = await api(`/tasks/${encodeURIComponent(S.taskId)}/step`, { method: 'POST', body: '{}' })
+          toast(r.stopped ? `停机：${r.step?.reason ?? ''}` : r.finished ? '已收口 ✓' : `走了一步：${r.step?.kind ?? ''}`)
+        } else {
+          await api(`/tasks/${encodeURIComponent(S.taskId)}/pipeline`, {
+            method: 'POST',
+            body: JSON.stringify({ auto: mode === 'on', reset: mode === 'reset' }),
+          })
+          toast(mode === 'reset' ? '已重开（断路器归零）' : mode === 'on' ? '自动流转已开' : '已停自动')
+        }
+        await refresh()
+      } catch (error) {
+        toast(`✗ ${error.message}`)
+      }
+      return
+    }
+    if (el.dataset.arch) { await doAction(el.dataset.arch, el.dataset.to); return }
+    if (el.dataset.dispatch) {
+      try {
+        await api(`/tasks/${encodeURIComponent(S.taskId)}/dispatch`, { method: 'POST', body: JSON.stringify({ nodeId: el.dataset.dispatch }) })
+        toast('已交办真子会话 ✓')
+        await refresh()
+      } catch (error) {
+        toast(`✗ ${error.message}`)
+      }
+      return
+    }
+    if (el.dataset.stop) {
+      try {
+        await api(`/tasks/${encodeURIComponent(S.taskId)}/nodes/${encodeURIComponent(el.dataset.stop)}/stop`, { method: 'POST', body: '{}' })
+        toast('已叫停')
+        await refresh()
+      } catch (error) {
+        toast(`✗ ${error.message}`)
+      }
+      return
+    }
+    if (el.dataset.copy) {
+      try {
+        const r = await api(`/artifacts/${el.dataset.copy.split('/').map(encodeURIComponent).join('/')}`)
+        await navigator.clipboard.writeText(r.text)
+        toast('已复制全文 ✓')
+      } catch (error) {
+        toast(`✗ 复制失败：${error.message}`)
+      }
+      return
+    }
+    if (el.dataset.act) {
+      const taskId = S.detail?.id ?? S.taskId
+      let remark
+      if (el.dataset.act === 'reject') remark = prompt('封驳理由（写入停因与审计）：') ?? ''
+      await doAction(taskId, el.dataset.act, el.dataset.node, remark)
+      return
+    }
+    if (el.dataset.node && S.view === 'task') {
+      // 选中节点 → 详情与产物内嵌展示在节点区下方
+      S.selNodeId = S.selNodeId === el.dataset.node ? S.selNodeId : el.dataset.node
+      render()
+      document.getElementById('ndetail')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+      return
+    }
+    if (el.dataset.nav) { location.hash = el.dataset.nav; return }
+    if (el.dataset.f) {
+      S.filter = el.dataset.f
+      if (S.filter === 'archived' && !S.archivedTasks) await loadArchived()
+      render()
+      return
+    }
+    if (el.dataset.closeModal) {
+      // 只有真点到遮罩本身才关（点弹层内容会冒泡到遮罩，不能误关）
+      if (event.target === el) closeModal()
+      return
+    }
+  })
+
+  document.addEventListener('change', async (event) => {
+    if (event.target.id === 'triageSel' && S.detail) {
+      const tier = event.target.value
+      try {
+        await api(`/tasks/${encodeURIComponent(S.detail.id)}/triage`, { method: 'POST', body: JSON.stringify({ tier, reason: '看板手动改级' }) })
+        toast(`改级 ${tier} ✓`)
+        await refresh()
+      } catch (error) {
+        toast(`✗ ${error.message}`)
+        await refresh()
+      }
+    }
+    if (event.target.id === 'acCommit') {
+      try {
+        await api('/config', { method: 'POST', body: JSON.stringify({ autoCommit: event.target.checked }) })
+        toast(`收口自动提交已${event.target.checked ? '开启' : '关闭'}`)
+      } catch (error) {
+        toast(`✗ ${error.message}`)
+        event.target.checked = !event.target.checked
+      }
+    }
+  })
+
+  // 产物懒加载：details 展开（toggle 不冒泡，用捕获监听）才拉内容
+  document.addEventListener('toggle', (event) => {
+    const details = event.target
+    if (!(details instanceof HTMLDetailsElement) || !details.open) return
+    const box = details.querySelector('.artbody[data-art]')
+    if (!box || box.getAttribute('data-loaded')) return
+    loadArtifact(box.getAttribute('data-art'), box, box.closest('[data-artref]')?.textContent?.includes('diff'))
+  }, true)
+
+  document.addEventListener('submit', (e) => e.preventDefault())
+
+  document.addEventListener('click', async (event) => {
+    if (event.target.id === 'cwdSave') {
+      const input = $('cwdInput')
+      try {
+        await api('/config', { method: 'POST', body: JSON.stringify({ defaultCwd: input?.value?.trim() ?? '' }) })
+        toast('执行配置已保存 ✓')
+        await refresh()
+      } catch (error) {
+        toast(`✗ ${error.message}`)
+      }
+      return
+    }
+    if (event.target.id === 'btn-theme') {
+      S.theme = S.theme === 'dark' ? 'light' : 'dark'
+      localStorage.setItem('npcx-theme', S.theme)
+      render()
+      return
+    }
+    if (event.target.id === 'btn-refresh') { await refresh(); toast('已刷新'); return }
+    if (event.target.id === 'btn-new') { openNewTask(); return }
+    if (event.target.id === 'ntSubmit') {
+      const title = $('ntTitle').value.trim()
+      const requirement = $('ntReq').value
+      const tier = $('ntTier').value || undefined
+      const role = $('ntRole').value
+      try {
+        const r = await api('/tasks', { method: 'POST', body: JSON.stringify({ title, requirement, tier, role, origin: 'board' }) })
+        // npc-x 精神：下旨即全权委托——有执行环境就自动开流水线（判级→…→交付无人值守）
+        let note = '已立项'
+        if (S.data?.agentsReady) {
+          try {
+            await api(`/tasks/${encodeURIComponent(r.id)}/pipeline`, { method: 'POST', body: JSON.stringify({ auto: true }) })
+            note = '已立项并开启自动流转'
+          } catch {
+            note = '已立项（自动流转开启失败，可手动开）'
+          }
+        } else {
+          note = '已立项（当前环境无执行能力，未自动流转）'
+        }
+        closeModal()
+        toast(`${r.id} ✓ ${note}`)
+        await refresh()
+        location.hash = `#/task/${r.id}`
+      } catch (error) {
+        toast(`✗ ${error.message}`)
+      }
+      return
+    }
+    if (event.target.id === 'docSubmit' && S.detail && S.selNodeId) {
+      const type = $('docType').value
+      const from = $('docFrom').value.trim()
+      const text = $('docText').value
+      try {
+        await api(`/tasks/${encodeURIComponent(S.detail.id)}/nodes/${encodeURIComponent(S.selNodeId)}/doc`, {
+          method: 'POST', body: JSON.stringify({ type, from, text }),
+        })
+        toast('公文已递 ✓')
+        await refresh()
+      } catch (error) {
+        toast(`✗ ${error.message}`)
+      }
+    }
+  })
+
+  window.addEventListener('hashchange', () => { route(); render() })
+
+  function route() {
+    const h = location.hash
+    const m = h.match(/^#\/task\/(.+)$/)
+    if (m) {
+      if (S.view !== 'task' || S.taskId !== decodeURIComponent(m[1])) S.selNodeId = null
+      S.view = 'task'
+      S.taskId = decodeURIComponent(m[1])
+      S.detail = null
+      loadDetail(S.taskId).then(render)
+    } else if (h === '#/roles') {
+      S.view = 'roles'
+    } else {
+      S.view = 'board'
+    }
+  }
+
+  /* ================= 长轮询主循环 ================= */
+
+  async function poll() {
+    let silentFail = 0
+    for (;;) {
+      try {
+        // 弹层打开或详情表单输入中 → 跳过重绘（保住草稿），只拉数据
+        const modalOpen = $('modalRoot').innerHTML !== ''
+        const typing = document.activeElement && $('view').contains(document.activeElement) &&
+          ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)
+        const prev = S.v
+        const r = await api(`/state?since=${S.v}&timeout=25000`)
+        S.v = r.v
+        S.data = r
+        const changed = r.v !== prev
+        if (S.view === 'task' && S.taskId && (changed || !S.detail)) await loadDetail(S.taskId)
+        if (S.filter === 'archived' && (changed || !S.archivedTasks)) await loadArchived()
+        // 版本没变（纯长轮询超时返回）不重绘——避免把用户正点着的节点重建掉
+        if (changed && !modalOpen && !typing) render()
+        silentFail = 0
+      } catch {
+        silentFail += 1
+        if (silentFail >= 3) { silentFail = 0; try { renderChips() } catch { /* 忽略 */ } }
+        await sleep(3000)
+      }
+    }
+  }
+
+  /* ================= 启动 ================= */
+
+  document.documentElement.setAttribute('data-theme', S.theme)
+  route()
+  refresh()
+  poll()
+})()
+</script>
+</body>
+</html>
