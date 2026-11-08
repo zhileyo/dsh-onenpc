@@ -61,7 +61,14 @@ git push origin main       # origin = GitHub，真源
 ```
 
 CNB 会在下一个整点跟上；想立刻同步就在 CNB 页面手动触发一次
-`mirror-from-github-manual`。**不要在 CNB 侧提交**：pull 是强制镜像，那里的改动
+`mirror-from-github-manual`，或者用命令行：
+
+```powershell
+cnb build start-build --repo zhileyo/dsh-onenpc --branch main --event api_trigger
+```
+
+`.cnb.yml` 里 crontab / web_trigger / api_trigger 三个入口指向同一个 job，
+拉取逻辑只有一份。**不要在 CNB 侧提交**：pull 是强制镜像，那里的改动
 会在下次拉取时被覆盖。
 
 ## 验证镜像是否对齐
