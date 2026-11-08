@@ -1,6 +1,6 @@
 # dsh-onenpc · 三省六部（DeepSeekRuntime 插件）
 
-把 [npc-x](../npc-x)（CNB 平台版「三省六部 · 无人值守多 NPC 协作体系」）移植成 DeepSeekRuntime（DSH）插件：
+把 [npc-x](../npc-x)（CNB 平台版「三省六部 · 无人值守多 NPC 协作体系」）移植成 DeepSeekRuntime 插件：
 对话框 **@npc / `/npc` / 🏯 按钮** 直达办事、任务看板、角色泳道流程图、节点详情与产物（git diff / 执行汇报）。
 
 > **对外一个 NPC，对内一个朝廷。** 你只需要跟一个 `@npc` 入口说话；背后是三省六部 12 个角色——中书令拆解、门下省封驳、刑部初审、太史令审计、六部执行，全部由一个 NPC 的名字对外。
@@ -119,7 +119,7 @@ powershell -ExecutionPolicy Bypass -File scripts\install-profile.ps1
 - [analysis/01-npc-x-analysis.md](analysis/01-npc-x-analysis.md) — 移植源调研：npc-x 是什么、哪些搬哪些不搬
 - [analysis/02-design.md](analysis/02-design.md) — 设计方案：架构/数据模型/@npc 交互/接口/里程碑/成功指标
 - [docs/REPO.md](docs/REPO.md) — 仓库拓扑：GitHub 真源 + CNB 拉取镜像的日常流程与排错
-- 架构先例：`D:\Projects\dsh-edict-demo`（同作者已验证的 DSH 插件骨架，MIT）；插件面证据：`dsh-edict-demo/analysis/02-dsh-plugin-surface.md`
+- 架构先例：`D:\Projects\dsh-edict-demo`（同作者已验证的 DeepSeekRuntime 插件骨架，MIT）；插件面证据：`dsh-edict-demo/analysis/02-dsh-plugin-surface.md`
 
 ## 已拍板的关键决策（2026-11-01）
 
