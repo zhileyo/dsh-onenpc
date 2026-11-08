@@ -74,14 +74,30 @@
       "rationale": "包名已改为 dsh-onenpc，但源码目录仍是 D:\\Projects\\dsh-edict（改目录会让正在运行的 GUI 会话失去 cwd，故本次刻意保留）。目录与包名长期不一致会让后来者困惑，也让 README 里 junction 目标看起来是笔误，需要一次收尾。",
       "rejected": "放弃在本次会话内直接改目录：会话 cwd 就在该目录下，改名会让后续所有工具调用失效，且 junction 指向需同步更新，风险大于收益。",
       "sourceSessionId": "session-68570fce-7957-4a45-98f2-ee9aa907d9df",
-      "status": "todo",
+      "status": "done",
       "tags": [
         "rename",
         "cleanup",
         "follow-up"
       ],
       "createdAt": 1793529453093,
-      "updatedAt": 1793529453093
+      "updatedAt": 1794116577069,
+      "summary": "源码目录已是 D:\\Projects\\dsh-onenpc，install-profile.ps1 的  同步改为新路径、原「目录待改」注释改写为改名须知；README 的 junction 目标与「源码目录仍叫 dsh-edict」一段一并更新为现状。随「首次建仓」一起提交并推到 GitHub 真源。"
+    },
+    {
+      "id": "card-d6f281e1-3dcb-4664-bf77-d7f3c4862ea4",
+      "title": "在 CNB 网页建 zhileyo/dsh-onenpc 并导入 GitHub 历史，开启自动触发",
+      "rationale": "跨仓迁移的收尾只能在 CNB 网页做：cnb CLI 的设备授权 token 缺 group-resource:rw，create-repo 直接 403（errcode 10025）。CNB 侧必须先有分支才能读到 .cnb.yml 的拉取流水线，所以首次要把 GitHub 历史搬一次（云端「迁移已有仓库」导入，或本地 git push cnb main 一次），之后全靠每小时 pull 快进。",
+      "rejected": "没有走「CNB 用 CLI 建仓 + 本地强推」：建仓被权限挡死，强推又会在镜像侧制造 GitHub 没有的提交，破坏 pull 快进基线。",
+      "sourceSessionId": "session-repo-migration",
+      "status": "todo",
+      "tags": [
+        "repo",
+        "mirror",
+        "follow-up"
+      ],
+      "createdAt": 1794116577070,
+      "updatedAt": 1794116577070
     }
   ]
 }
