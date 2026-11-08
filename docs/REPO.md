@@ -103,3 +103,79 @@ git ls-remote cnb main       # CNB
 与远端拓扑无关：换机器时 clone 到任意路径后改脚本里的 `$srcDir` 即可。
 包名 `dsh-onenpc`、数据目录 `$DSH_HOME/onenpc`、命令 `/npc` 都是运行时契约，
 不随仓库改名而变。
+
+## 发布（npm + GitHub Release）
+
+发布跑在 **GitHub Actions**（`.github/workflows/release.yml`），因为 GitHub 是真源；
+CNB 镜像不需要、也不允许有发布流水线。
+
+工作流只在**推 tag** 时触发（`v*`），正常提交不会跑，所以没配凭据也挡不住开发。
+它做的事：校验 tag 与 `package.json` 版本一致 → `npm run check:fast` → `npm pack`
+→ `npm publish --provenance --access public` → `gh release create` 附 tarball。
+
+### 一次性准备（二选一）
+
+**A. npm Automation Token（最省事，首发也能用）**
+
+1. npmjs.com → Access Tokens → 生成 **Automation** token；
+2. GitHub 仓库 → Settings → Secrets and variables → Actions → 新建 `NPM_TOKEN`。
+
+**B. Trusted Publishing（无长期 token，推荐长期维护）**
+
+包还不存在时配不了，所以要先用 A 或本地 `npm login` + `npm publish` 发一次；
+然后在 npmjs.com 该包 → Settings → Trusted Publisher 里绑
+`zhileyo/dsh-onenpc` + 工作流 `release.yml`，之后把 workflow 里
+`NODE_AUTH_TOKEN` 两行删掉即可（provenance 仍由 OIDC 提供）。
+
+包名现状：`dsh-onenpc` 在 registry 上尚未占用（`npm view` 404），可以公开发。
+
+### 每次发版
+
+```powershell
+# 1. 改版本（0.0.1 → 0.0.2 之类），顺手更新 README 状态行
+# 2. 提交并推真源
+git commit -am "chore(release): v0.0.2"
+git push origin main
+
+# 3. 打 tag 并推——这一步才触发发布
+git tag v0.0.2
+git push origin v0.0.2
+```
+
+跑完检查：
+
+```powershell
+npm view dsh-onenpc version                 # registry 上的版本
+gh release view v0.0.2 --repo zhileyo/dsh-onenpc
+```
+
+### 发什么
+
+`npm pack` 只看 `package.json` 的 `files`：`lib/`、`public/`、`assets/icon.svg`、
+`cordis.patch.yml`、`README.md`，加上强制包含的 `LICENSE` / `package.json`，
+共 12 个文件、约 67 kB（`scripts/`、`analysis/`、`.agents/`、`KANBAN.json` 不进包）。
+
+### 版本与兼容
+
+- 1.0 之前用 `0.0.x`，破兼容再进 `0.1.0`；
+- `package.json` 的 `dsh.compatibility.dshReleases` 是给宿主的兼容矩阵，
+  每次适配新的 DSH 版本记得加一条（当前只有 `0.2.1-rc.3: compatible`）。
+
+### 镜像与 tag
+
+tag 推 GitHub 后，CNB 的 pull 是否带走 tag 取决于 `git fetch` 的行为，可以查：
+
+```powershell
+git ls-remote --tags cnb
+```
+
+若 CNB 上缺 tag，在 `.cnb.yml` 的 `settings` 里补一行
+`fetch_options: "--tags"`，再触发一次拉取。
+
+### 发布前的自查清单
+
+- [ ] `npm run check:fast` 本地绿（136 项）
+- [ ] `npm run smoke` 在人机环境绿（沙箱里 spawn 会被拦，属环境限制）
+- [ ] `package.json` 版本与要推的 tag 一致
+- [ ] `README.md` 的状态行、`docs/REPO.md` 的镜像说明没有过期
+- [ ] 没有把本机绝对路径、token 写进将发布的内容

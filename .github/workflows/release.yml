@@ -1,0 +1,71 @@
+name: Release
+
+# 只在推 tag（v0.0.1 这种）时跑，正常提交不会触发，所以没有 npm 凭据也不会挡开发。
+# 首次发布必须人工做一次（包还不存在，无法配 trusted publishing），之后这个
+# workflow 就能一条龙：自测 → npm publish（带 provenance）→ GitHub Release。
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "只打包不发布"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write # gh release create
+  id-token: write # npm --provenance 的 OIDC 签名
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          registry-url: https://registry.npmjs.org
+
+      - name: tag 与 package.json 版本必须一致
+        if: github.event_name == 'push'
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          pkg="$(node -p "require('./package.json').version")"
+          echo "tag=$tag package=$pkg"
+          [ "$tag" = "$pkg" ] || { echo "::error::tag v$tag 与 package.json $pkg 不一致"; exit 1; }
+
+      - name: 自测（domain）
+        run: npm run check:fast
+
+      - name: 打包
+        run: npm pack
+
+      - name: 发布到 npm
+        if: github.event_name == 'push'
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # 可选：改用 npm Trusted Publishing（无需 NPM_TOKEN）。
+      # 见 docs/REPO.md「发布」一节；切换后删掉上面两行 env。
+
+      - name: 建 GitHub Release 并附 tarball
+        if: github.event_name == 'push'
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            ./dsh-onenpc-*.tgz \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes \
+            --verify-tag
+        env:
+          GH_TOKEN: ${{ github.token }}

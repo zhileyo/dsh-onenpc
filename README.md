@@ -24,6 +24,18 @@
   `mirror-from-github-manual`。
 - 镜像机制、首次基线、排错见 [docs/REPO.md](docs/REPO.md)。
 
+## 发布
+
+推 tag 即发布（`.github/workflows/release.yml`，跑在 GitHub Actions）：
+
+```bash
+git push origin main && git tag v0.0.1 && git push origin v0.0.1
+```
+
+工作流会跑自测、`npm publish --provenance`、建 GitHub Release 并附 tarball。
+首次发布前要在仓库 Secrets 里配 `NPM_TOKEN`（或改用 npm Trusted Publishing），
+细节见 [docs/REPO.md](docs/REPO.md#发布npm--github-release)。
+
 ## 流程（完全对齐 npc-x §8 状态机，档位差异化落地）
 
 ```
