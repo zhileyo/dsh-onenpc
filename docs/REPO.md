@@ -142,11 +142,29 @@ npm 正在收紧长期 token 的发布能力，所以本仓库按「无 token」
 绑定必须人工过 2FA，这是 npm 的规则不是偏好：2026-07-31 起带 bypass-2FA 的
 Granular Access Token **不能再改**可信发布配置；同一公告写明 **2027-01 起这类
 token 也将失去直接 `npm publish` 的能力**，只剩读私有包和「暂存发布、人工批准」。
-所以 Automation Token 只是过渡方案。
+所以 Automation Token 只是过渡方案：npmjs.com → Access Tokens 生成 Automation
+token，存进 GitHub Secrets 的 `NPM_TOKEN`，workflow 加回 `env:` 即可用，到期再换。
 
-**过渡备选：Automation Token**——npmjs.com → Access Tokens 生成 Automation
-token，存进 GitHub Secrets 的 `NPM_TOKEN`，workflow 保持现在的 `env:` 写法。
-它能用，但 2027-01 之后会失效。
+### 2027-01 之后（token 直发到期）
+
+npm 公告：bypass-2FA 的 Granular Access Token 届时只剩「读私有包 + 暂存发布」，
+不能再直接 `npm publish`。三条替代路线：
+
+| 路线 | CI 侧 | 人工侧 | 适合 |
+| --- | --- | --- | --- |
+| **A. Trusted Publishing（本仓库默认）** | OIDC，无需任何 token | 一次性绑定 | 想全自动 |
+| **B. Staged 发布** | `npm stage publish`（不需要 2FA） | 每次 `npm stage approve <stage-id>` 过 2FA | 想人工把关/先审包 |
+| **C. 本地手发** | — | `npm login`（2 小时会话）+ `npm publish` 过 2FA | 极少发版 |
+
+本仓库已在 A 路线上，所以两个月后**不需要做任何改动**——只要绑定做过一次。
+只有当初选了 token 路线才需要迁移：换 A，或把 workflow 的 `npm publish` 改成
+`npm stage publish` 并人工批准。
+
+B 路线的细节：`npm stage publish` 任何 token 类型都能跑、不弹 2FA；
+`npm stage approve` 必须 2FA。可信关系也支持细分权限
+（`--allow-publish` / `--allow-stage-publish`），即可以「只允许暂存、不许直发」。
+对高价值包可以在 npm 的 package access 页选
+「Require two-factor authentication and disallow tokens」彻底禁掉 token 发布。
 
 注意：本地已经发过 0.0.1 就**不要**再推 `v0.0.1` tag——publish 步骤会撞
 `EPUBLISHCONFLICT`；从下一个版本开始用 tag 发。
