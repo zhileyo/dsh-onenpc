@@ -1,4 +1,4 @@
-# Install dsh-onenpc into the desktop DSH profile (junction + package.json registration).
+﻿# Install dsh-onenpc into the desktop DSH profile (junction + package.json registration).
 # Usage: powershell -ExecutionPolicy Bypass -File scripts\install-profile.ps1
 #
 # 幂等：重复跑只补齐缺项，不重复写。

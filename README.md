@@ -5,7 +5,7 @@
 
 > **对外一个 NPC，对内一个朝廷。** 你只需要跟一个 `@npc` 入口说话；背后是三省六部 12 个角色——中书令拆解、门下省封驳、刑部初审、太史令审计、六部执行，全部由一个 NPC 的名字对外。
 
-当前状态：**M3 流水线完成 + 流程全面对齐 npc-x §8**（2026-11-01）——domain 121 项 + smoke 146 项自测全过；**真机（DeepSeekRuntime 内）验证待安装后进行**。
+当前状态：**M3 流水线完成 + 流程全面对齐 npc-x §8**（2026-11-01）——domain 136 项断言全过，smoke 覆盖宿主契约链（`npm run check` 一次跑完）；**真机（DeepSeekRuntime 内）验证待安装后进行**。
 
 ## 仓库与镜像
 
@@ -23,6 +23,7 @@
 - 刚推完想立刻对齐：CNB 仓库页 → 流水线 → 触发构建 →
   `mirror-from-github-manual`。
 - 镜像机制、首次基线、排错见 [docs/REPO.md](docs/REPO.md)。
+- 给 AI agent / 贡献者的操作手册（怎么跑、改哪里、别碰什么）见 [AGENTS.md](AGENTS.md)。
 
 ## 发布
 
@@ -78,7 +79,7 @@ git commit -am "chore(release): v0.0.2" && git push origin main
 ## 本地验证 / 预览
 
 ```bash
-npm run check        # domain 121 项 + smoke 146 项（约 4 秒）
+npm run check        # domain 136 项 + smoke 宿主契约链（约 4 秒）
 npm run dev          # 独立服务器 http://127.0.0.1:7412（默认临时数据目录；--shared 用真实数据）
 ```
 
